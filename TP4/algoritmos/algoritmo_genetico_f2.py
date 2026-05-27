@@ -27,6 +27,7 @@ class AlgoritmoGeneticoF2:
         self.mejor_fitness = -np.inf
         self.historial_mejor_fitness = []
         self.historial_fitness_promedio = []
+        self.memoria_fitness = {} 
     
     def codificar_cromosoma(self, caracteristicas_activas, num_neuronas_capa2=0, 
                            num_neuronas_capa3=0, activa_capa2=0, activa_capa3=0):
@@ -54,22 +55,31 @@ class AlgoritmoGeneticoF2:
     
     def decodificar_cromosoma(self, cromosoma):
         """Decodifica cromosoma en características y arquitectura"""
+        # Máscara de características (13 bits)
         caracteristicas_activas = cromosoma[0:13].astype(bool)
         
-        bits_capa2 = ''.join(map(str, cromosoma[13:20]))
-        num_neuronas_capa2 = int(bits_capa2, 2)
+        # Capa 1: Bits 13 a 19 (siempre activa)
+        bits_capa1 = ''.join(map(str, cromosoma[13:20]))
+        num_neuronas_capa1 = int(bits_capa1, 2) + 1
+        
+        # Capa 2: Bit 20 (activación) y Bits 21 a 27 (neuronas)
         activa_capa2 = cromosoma[20]
+        bits_capa2 = ''.join(map(str, cromosoma[21:28]))
+        num_neuronas_capa2 = int(bits_capa2, 2) + 1
         
-        bits_capa3 = ''.join(map(str, cromosoma[21:28]))
-        num_neuronas_capa3 = int(bits_capa3, 2)
+        # Capa 3: Bit 28 (activación) y Bits 29 a 35 (neuronas)
         activa_capa3 = cromosoma[28]
+        bits_capa3 = ''.join(map(str, cromosoma[29:36]))
+        num_neuronas_capa3 = int(bits_capa3, 2) + 1
         
-        capas = [16]
-        if activa_capa2 and num_neuronas_capa2 > 0:
+        # Armamos la arquitectura
+        capas = [num_neuronas_capa1]
+        
+        if activa_capa2 == 1:
             capas.append(num_neuronas_capa2)
-        if activa_capa3 and num_neuronas_capa3 > 0:
+        if activa_capa3 == 1:
             capas.append(num_neuronas_capa3)
-        
+            
         return caracteristicas_activas, tuple(capas)
     
     def crear_poblacion_inicial(self):
@@ -86,6 +96,11 @@ class AlgoritmoGeneticoF2:
         """
         Calcula fitness F2(I) = α*AccuracyCV + β*(1-P(I)/Pmax) + γ*(1-K/N)
         """
+        # Chequeo de Caché
+        llave_cromosoma = str(cromosoma)
+        if llave_cromosoma in self.memoria_fitness:
+            return self.memoria_fitness[llave_cromosoma]
+
         try:
             caracteristicas_activas, arquitectura = self.decodificar_cromosoma(cromosoma)
             
@@ -125,20 +140,20 @@ class AlgoritmoGeneticoF2:
             cantidad_parametros = self._calcular_parametros_arquitectura(
                 arquitectura, cantidad_caracteristicas_seleccionadas
             )
-            cantidad_parametros_max = self._calcular_parametros_arquitectura(
-                (128, 128), self.cantidad_caracteristicas
-            )
+            # El TP fija P_max en 35203
+            cantidad_parametros_max = 35203
             
             factor_complejidad = 1.0 - (cantidad_parametros / cantidad_parametros_max)
-            
             factor_reduccion = 1.0 - (cantidad_caracteristicas_seleccionadas / self.cantidad_caracteristicas)
             
             fitness = (self.alfa * accuracy_cv) + \
-                     (self.beta * factor_complejidad) + \
-                     (self.gamma * factor_reduccion)
+                      (self.beta * factor_complejidad) + \
+                      (self.gamma * factor_reduccion)
             
+            # Guardamos en caché
+            self.memoria_fitness[llave_cromosoma] = fitness
             return fitness
-        
+            
         except Exception:
             return -np.inf
     

@@ -26,6 +26,7 @@ class AlgoritmoGeneticoF1:
         self.mejor_fitness = -np.inf
         self.historial_mejor_fitness = []
         self.historial_fitness_promedio = []
+        self.memoria_fitness = {}
     
     def codificar_arquitectura(self, num_neuronas_capa2=0, num_neuronas_capa3=0, 
                                activa_capa2=0, activa_capa3=0):
@@ -52,20 +53,28 @@ class AlgoritmoGeneticoF1:
     
     def decodificar_arquitectura(self, cromosoma):
         """Decodifica cromosoma a arquitectura (tupla de capas ocultas)"""
-        bits_capa2 = ''.join(map(str, cromosoma[0:7]))
-        num_neuronas_capa2 = int(bits_capa2, 2)
+        # Capa 1: Bits 0 a 6 (Siempre activa)
+        bits_capa1 = ''.join(map(str, cromosoma[0:7]))
+        num_neuronas_capa1 = int(bits_capa1, 2) + 1  # Según TP: h_l = bin(...) + 1
+        
+        # Capa 2: Bit 7 (activación) y Bits 8 a 14 (neuronas)
         activa_capa2 = cromosoma[7]
+        bits_capa2 = ''.join(map(str, cromosoma[8:15]))
+        num_neuronas_capa2 = int(bits_capa2, 2) + 1
         
-        bits_capa3 = ''.join(map(str, cromosoma[8:15]))
-        num_neuronas_capa3 = int(bits_capa3, 2)
+        # Capa 3: Bit 15 (activación) y Bits 16 a 22 (neuronas)
         activa_capa3 = cromosoma[15]
+        bits_capa3 = ''.join(map(str, cromosoma[16:23]))
+        num_neuronas_capa3 = int(bits_capa3, 2) + 1
         
-        capas = [16]
-        if activa_capa2 and num_neuronas_capa2 > 0:
+        # Armamos la arquitectura
+        capas = [num_neuronas_capa1] # La capa 1 está siempre presente
+        
+        if activa_capa2 == 1:
             capas.append(num_neuronas_capa2)
-        if activa_capa3 and num_neuronas_capa3 > 0:
+        if activa_capa3 == 1:
             capas.append(num_neuronas_capa3)
-        
+            
         return tuple(capas)
     
     def crear_poblacion_inicial(self):
@@ -80,11 +89,13 @@ class AlgoritmoGeneticoF1:
         """
         Calcula fitness F1(I) = α * AccuracyCV + β * (1 - P(I)/Pmax)
         """
+        # Chequeo de Caché: Si ya lo calculamos antes, lo devolvemos directo
+        llave_cromosoma = str(cromosoma)
+        if llave_cromosoma in self.memoria_fitness:
+            return self.memoria_fitness[llave_cromosoma]
+
         try:
             arquitectura = self.decodificar_arquitectura(cromosoma)
-            
-            if len(arquitectura) < 2:
-                return -np.inf
             
             skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=self.seed)
             accuracies = []
@@ -110,14 +121,16 @@ class AlgoritmoGeneticoF1:
             accuracy_cv = np.mean(accuracies)
             
             cantidad_parametros = self._calcular_parametros_arquitectura(arquitectura)
-            cantidad_parametros_max = self._calcular_parametros_arquitectura((128, 128))
+            cantidad_parametros_max = 35203 # Según TP Pmax es 35203
             
             factor_complejidad = 1.0 - (cantidad_parametros / cantidad_parametros_max)
             
             fitness = (self.alfa * accuracy_cv) + (self.beta * factor_complejidad)
             
+            # Guardamos en la memoria antes de retornar
+            self.memoria_fitness[llave_cromosoma] = fitness
             return fitness
-        
+            
         except Exception:
             return -np.inf
     
