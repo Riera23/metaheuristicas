@@ -7,6 +7,9 @@ from utils.metricas import Metricas
 from utils.visualizacion import Visualizacion
 from utils.herramientas import Herramientas
 
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 def ejercicio_3():
     print("EJERCICIO 3: Optimización con Selección de Variables")
@@ -158,7 +161,8 @@ def crear_tabla_comparativa_ej3(resultados_configuraciones):
             'Arquitectura': str(resultado['arquitectura']),
             'Accuracy Test': resultado['accuracy_test'],
             'Parámetros': resultado['parametros'],
-            'Variables Seleccionadas': resultado['caracteristicas_seleccionadas']
+            'Variables Seleccionadas': resultado['caracteristicas_seleccionadas'],
+            'Índices Variables': str(resultado['indices_caracteristicas'])
         })
     
     return pd.DataFrame(datos_tabla)

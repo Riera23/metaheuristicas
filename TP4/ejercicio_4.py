@@ -8,6 +8,9 @@ from algoritmos.algoritmo_genetico_f2 import AlgoritmoGeneticoF2
 from utils.metricas import Metricas
 from utils.visualizacion import Visualizacion
 
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 def ejercicio_4():
     print("EJERCICIO 4: Análisis de Estabilidad - 10 Corridas F1 y F2")
@@ -83,6 +86,46 @@ def ejercicio_4():
     Visualizacion.guardar_figura(fig_boxplot, "./resultados/boxplot_f1_vs_f2.png")
     
     print()
+
+    print("\nMatrices de Confusión")
+    
+    for nombre_alg, df_res in [('F1', df_resultados_f1), ('F2', df_resultados_f2)]:
+        idx_mejor = df_res['accuracy_test'].idxmax()
+        idx_peor = df_res['accuracy_test'].idxmin()
+        
+    
+        y_predicho_mejor = df_res.loc[idx_mejor, 'y_predicho']
+        y_predicho_peor = df_res.loc[idx_peor, 'y_predicho']
+        
+        fig_mejor = Visualizacion.graficar_matriz_confusion(
+            y_prueba, y_predicho_mejor,
+            titulo=f"Matriz de Confusión Mejor - {nombre_alg}"
+        )
+        Visualizacion.guardar_figura(
+            fig_mejor, f"./resultados/matriz_confusion_{nombre_alg.lower()}_mejor_ej_4.png"
+        )
+        
+        fig_peor = Visualizacion.graficar_matriz_confusion(
+            y_prueba, y_predicho_peor,
+            titulo=f"Matriz de Confusión Peor - {nombre_alg}"
+        )
+        Visualizacion.guardar_figura(
+            fig_peor, f"./resultados/matriz_confusion_{nombre_alg.lower()}_peor_ej_4.png"
+        )
+
+    print("\nFRECUENCIAS DE SELECCIÓN DE CARACTERÍSTICAS (F2)")
+    frecuencias = np.sum(df_resultados_f2['caracteristicas_activas'].tolist(), axis=0)
+    
+    df_frecuencias = pd.DataFrame({
+        'Indice_Caracteristica': range(len(frecuencias)),
+        'Frecuencia_Seleccion_Sobre_10': frecuencias
+    })
+    
+    print(df_frecuencias.to_string(index=False))
+    
+    df_frecuencias.to_csv("./resultados/frecuencias_caracteristicas_f2_ejercicio_4.csv", index=False)
+    
+
     return resultados_f1, resultados_f2
 
 
@@ -101,8 +144,8 @@ def ejecutar_multiples_corridas_f1(X_entrenamiento, X_prueba, y_entrenamiento, y
             generaciones=30,
             probabilidad_mutacion=0.05,
             tamaño_torneo=2,
-            alfa=1.0,
-            beta=0.0,
+            alfa=0.7,
+            beta=0.3,
             seed=semilla
         )
         
@@ -126,13 +169,14 @@ def ejecutar_multiples_corridas_f1(X_entrenamiento, X_prueba, y_entrenamiento, y
         cantidad_parametros = calcular_parametros_arquitectura_f1(
             cantidad_caracteristicas, cantidad_clases, arquitectura
         )
-        
+
         resultados.append({
             'semilla': semilla,
             'mejor_fitness': mejor_fitness,
             'accuracy_test': accuracy,
             'parametros': cantidad_parametros,
-            'arquitectura': str(arquitectura)
+            'arquitectura': str(arquitectura),
+            'y_predicho': y_predicho
         })
     
     return resultados
@@ -153,9 +197,9 @@ def ejecutar_multiples_corridas_f2(X_entrenamiento, X_prueba, y_entrenamiento, y
             generaciones=30,
             probabilidad_mutacion=0.05,
             tamaño_torneo=2,
-            alfa=0.6,
-            beta=0.2,
-            gamma=0.2,
+            alfa=0.4,
+            beta=0.5,
+            gamma=0.1,
             seed=semilla
         )
         
@@ -185,13 +229,16 @@ def ejecutar_multiples_corridas_f2(X_entrenamiento, X_prueba, y_entrenamiento, y
             cantidad_caracteristicas_seleccionadas, cantidad_clases, arquitectura
         )
         
+
         resultados.append({
             'semilla': semilla,
             'mejor_fitness': mejor_fitness,
             'accuracy_test': accuracy,
             'parametros': cantidad_parametros,
             'arquitectura': str(arquitectura),
-            'variables_seleccionadas': cantidad_caracteristicas_seleccionadas
+            'variables_seleccionadas': cantidad_caracteristicas_seleccionadas,
+            'caracteristicas_activas': caracteristicas_activas.tolist(),
+            'y_predicho': y_predicho
         })
     
     return resultados
@@ -213,6 +260,14 @@ def calcular_estadisticas(resultados, nombre_algoritmo):
         'Parámetros Std': [np.std(parametros)]
     }
     
+    if 'variables_seleccionadas' in resultados[0]:
+        k_vals = [r['variables_seleccionadas'] for r in resultados]
+        estadisticas['K Media'] = [np.mean(k_vals)]
+        estadisticas['K Std'] = [np.std(k_vals)]
+        estadisticas['K Min'] = [np.min(k_vals)]
+        estadisticas['K Max'] = [np.max(k_vals)]
+        estadisticas['K Mediana'] = [np.median(k_vals)]
+
     return pd.DataFrame(estadisticas)
 
 
