@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from datos_mercado import N_ACTIVOS, RETORNOS_ESPERADOS, MATRIZ_COVARIANZAS
-from algoritmos.algoritmo_abc import AlgoritmoABC
+from algoritmo_abc import AlgoritmoABC
 from utils.metricas import MetricasFinancieras
 from utils.visualizacion import Visualizacion
 

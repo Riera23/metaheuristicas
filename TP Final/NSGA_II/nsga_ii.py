@@ -15,6 +15,7 @@ class NSGAII:
         self.eta_c = eta_c # Índice de distribución para SBX. Si es alto los hijos se parecen más a los padres
         self.eta_m = eta_m # Índice de distribución para Mutación Polinomial.
 
+    # normalizar
     def reparar_solucion(self, x):
         """Garantiza que las proporciones sean >= 0 y sumen 1."""
         x = np.maximum(x, 0)
@@ -25,10 +26,11 @@ class NSGAII:
             x = x / suma
         return x
 
+    # calcular fitness
     def calcular_objetivos(self, x):
         """Calcula f1 (riesgo) y f2 (retorno negativo)."""
-        f1 = np.dot(x.T, np.dot(self.covarianza, x))
-        f2 = -np.sum(x * self.retornos)
+        f1 = np.dot(x.T, np.dot(self.covarianza, x))  # minimizar riesgo
+        f2 = -np.sum(x * self.retornos)               # maximizar retorno --> minimizar negativo de retorno
         return np.array([f1, f2])
 
     def domina(self, obj1, obj2):

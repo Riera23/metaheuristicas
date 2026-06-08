@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RESULTADOS_DIR = os.path.join(BASE_DIR, 'resultados')
+
 class Visualizacion:
     
     @staticmethod
@@ -33,8 +36,8 @@ class Visualizacion:
 
     @staticmethod
     def guardar_resultados_csv(resultados, nombre_archivo):
-        if not os.path.exists('resultados'):
-            os.makedirs('resultados')
+        if not os.path.exists(RESULTADOS_DIR):
+            os.makedirs(RESULTADOS_DIR)
             
         datos = []
         for i, res in enumerate(resultados):
@@ -54,7 +57,7 @@ class Visualizacion:
             datos.append(fila)
             
         df = pd.DataFrame(datos)
-        ruta = os.path.join('resultados', nombre_archivo)
+        ruta = os.path.join(RESULTADOS_DIR, nombre_archivo)
         df.to_csv(ruta, index=False)
 
     @staticmethod
@@ -63,8 +66,8 @@ class Visualizacion:
         Genera el gráfico de puntos simulando los portafolios (p1, p2, etc.) de la Figura 2.
         Nota: El eje X siempre debe dibujarse con la Desviación Real (no la varianza).
         """
-        if not os.path.exists('resultados'):
-            os.makedirs('resultados')
+        if not os.path.exists(RESULTADOS_DIR):
+            os.makedirs(RESULTADOS_DIR)
             
         riesgos = [np.sqrt(res['riesgo']) * 100 for res in resultados] 
         retornos = [res['retorno'] * 100 for res in resultados]        
@@ -88,6 +91,6 @@ class Visualizacion:
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         plt.tight_layout()
         
-        ruta = os.path.join('resultados', nombre_archivo)
+        ruta = os.path.join(RESULTADOS_DIR, nombre_archivo)
         plt.savefig(ruta, dpi=300)
         plt.close()
