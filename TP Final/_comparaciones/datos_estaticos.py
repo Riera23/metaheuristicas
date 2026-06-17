@@ -14,15 +14,14 @@ from ABC.algoritmo_abc import AlgoritmoABC
 from NSGA_II.nsga_ii import NSGAII
 
 from func.funciones import calcular_hipervolumen_2d, exportar_carteras, exportar_hipervolumen, exportar_test_wilcoxon, generar_graficos, wilcoxon
-from utils.metricas import MetricasFinancieras
+from ABC.utils.metricas import MetricasFinancieras
 
 def main():
     carpeta_salida = os.path.join(BASE_DIR, '_comparaciones')
     os.makedirs(carpeta_salida, exist_ok=True)
     
-    # 1. Configuración de Hiperparámetros Optimizados (obtenidos del optimizador)
-    # Estos valores son ejemplos basados en una optimización previa
-    params_nsga = {'tam_poblacion': 50, 'n_generaciones': 99, 'prob_crossover': 0.8, 'prob_mutacion': 0.05, 'eta_c': 20, 'eta_m': 20}
+    # Configuración de Hiperparámetros Optimizados (obtenidos del optimizador)
+    params_nsga = {'tam_poblacion': 50, 'n_generaciones': 99, 'prob_crossover': 0.8, 'prob_mutacion': 0.25, 'eta_c': 15, 'eta_m': 30}
     params_abc = {'tamano_poblacion': 20, 'limite': 50}
     LAMBDA_OPTIMO = 0.5
     
@@ -101,7 +100,7 @@ def main():
             mejores_pesos_abc = np.array(pesos_abc_muestreado)
 
         # --- CASO 2: Mejor vs Mejor (Fitness Escalarizado) ---
-        # 1. ABC con Lambda Óptimo y presupuesto completo
+        # ABC con Lambda Óptimo y presupuesto completo
         ciclos_abc_full = PRESUPUESTO_TOTAL // (2 * params_abc['tamano_poblacion'])
         abc_opt = AlgoritmoABC(n_activos=N_ACTIVOS, max_ciclos=ciclos_abc_full, **params_abc)
         sol_abc_opt = abc_opt.ejecutar(RETORNOS_ESPERADOS, MATRIZ_COVARIANZAS, LAMBDA_OPTIMO)
@@ -110,7 +109,7 @@ def main():
         fit_abc = MetricasFinancieras.calcular_fitness(f_obj_abc)
         dist_fitness_abc_caso2.append(fit_abc)
 
-        # 2. Buscar el mejor individuo de NSGA-II para ese mismo Lambda
+        # Buscar el mejor individuo de NSGA-II para ese mismo Lambda
         # Calculamos el fitness escalar de cada punto en el frente de Pareto de NSGA
         fitness_frente_nsga = []
         for obj in obj_nsga:
@@ -140,7 +139,7 @@ def main():
     
     print(df_stats.to_string())
 
-    # --- Exportación de archivos detallados ---
+    # Exportación de archivos detallados
     print("\nExportando archivos de resultados...")
     exportar_carteras(mejor_pob_nsga, mejor_obj_nsga, mejores_pesos_abc, mejores_obj_abc, lambdas_barrido, carpeta_salida)
     exportar_hipervolumen(mejor_obj_nsga, mejores_obj_abc, carpeta_salida)
