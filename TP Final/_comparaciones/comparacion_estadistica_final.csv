@@ -1,0 +1,3 @@
+Comparación,Media NSGA-II,Media ABC,P-Valor (Wilcoxon),Sig. (0.05)
+Caso 1: Hipervolumen (Frentes),3.1416247104640276e-07,3.172024109743589e-07,0.017453668639063835,True
+Caso 2: Fitness (Mejor vs Mejor),0.9999960646116403,1.0000093315068286,1.862645149230957e-09,True

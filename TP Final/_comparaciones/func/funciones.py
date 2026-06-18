@@ -51,11 +51,8 @@ def exportar_carteras(mejor_pob_nsga, mejor_obj_nsga, mejores_pesos_abc, mejores
     df_abc[columnas_abc].to_csv(os.path.join(carpeta_salida, 'detalles_carteras_abc.csv'), index=False)
 
 
-def exportar_hipervolumen(mejor_obj_nsga, mejores_obj_abc, carpeta_salida):
+def exportar_hipervolumen(mejor_obj_nsga, mejores_obj_abc, punto_ref_global, carpeta_salida):
     """Calcula y exporta el hipervolumen global del mejor frente obtenido."""
-
-    max_riesgo = max(np.max(mejor_obj_nsga[:, 0]), np.max(mejores_obj_abc[:, 0]))
-    punto_ref_global = [max_riesgo * 1.1, 0.0]
     
     hv_final_nsga = calcular_hipervolumen_2d(mejor_obj_nsga, punto_ref_global)
     hv_final_abc = calcular_hipervolumen_2d(mejores_obj_abc, punto_ref_global)

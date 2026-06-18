@@ -21,7 +21,7 @@ def main():
     os.makedirs(carpeta_salida, exist_ok=True)
     
     # Configuración de Hiperparámetros Optimizados (obtenidos del optimizador)
-    params_nsga = {'tam_poblacion': 50, 'n_generaciones': 99, 'prob_crossover': 0.8, 'prob_mutacion': 0.25, 'eta_c': 15, 'eta_m': 30}
+    params_nsga = {'tam_poblacion': 50, 'n_generaciones': 99, 'prob_crossover': 0.76, 'prob_mutacion': 0.005, 'eta_c': 17, 'eta_m': 19}
     params_abc = {'tamano_poblacion': 20, 'limite': 50}
     LAMBDA_OPTIMO = 0.5
     
@@ -32,18 +32,13 @@ def main():
     np.random.seed(42)
     semillas = np.random.randint(1, 10000, 30).tolist()
     lambdas_barrido = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    pto_ref = [0.01, 0.01] 
 
     # Estructuras para resultados estadísticos
-    mejor_hv_nsga = -1
-    mejor_obj_nsga = None
-    mejor_pob_nsga = None
-    mejor_hv_abc = -1
-    mejores_obj_abc = None
-    mejores_pesos_abc = None
+    nsga_results_por_semilla = {} 
     abc_fronts_por_semilla = {}
+    abc_pesos_por_semilla = {}
     dist_sharpe_nsga = []
-    dist_hv_nsga, dist_hv_abc = [], []
+    dist_hv_nsga = []
     dist_fitness_nsga_caso2, dist_fitness_abc_caso2 = [], []
 
     print(f"=== Iniciando Comparación Estadística ({len(semillas)} semillas) ===")
@@ -61,19 +56,11 @@ def main():
             **params_nsga
         )
         pob_nsga, obj_nsga = nsga.ejecutar()
+        nsga_results_por_semilla[semilla] = (obj_nsga, pob_nsga)
         
         # Guardar para estadísticas de Sharpe
         sharpes_nsga = (-obj_nsga[:, 1]) / np.sqrt(np.clip(obj_nsga[:, 0], 1e-10, None))
         dist_sharpe_nsga.append(np.max(sharpes_nsga))
-
-        # --- CASO 1: Comparación de Frentes (Hipervolumen) ---
-        hv_nsga = calcular_hipervolumen_2d(obj_nsga, pto_ref)
-        dist_hv_nsga.append(hv_nsga)
-
-        if hv_nsga > mejor_hv_nsga:
-            mejor_hv_nsga = hv_nsga
-            mejor_obj_nsga = obj_nsga
-            mejor_pob_nsga = pob_nsga
 
         # ABC Barrido: Repartimos el presupuesto entre los lambdas
         # E_por_lambda = 5000 / 11 ~ 454 -> Ciclos = 454 / (2 * 20) ~ 11 ciclos
@@ -91,13 +78,7 @@ def main():
             pesos_abc_muestreado.append(sol)
         
         abc_fronts_por_semilla[semilla] = frente_abc_muestreado
-        hv_abc = calcular_hipervolumen_2d(np.array(frente_abc_muestreado), pto_ref)
-        dist_hv_abc.append(hv_abc)
-
-        if hv_abc > mejor_hv_abc:
-            mejor_hv_abc = hv_abc
-            mejores_obj_abc = np.array(frente_abc_muestreado)
-            mejores_pesos_abc = np.array(pesos_abc_muestreado)
+        abc_pesos_por_semilla[semilla] = pesos_abc_muestreado
 
         # --- CASO 2: Mejor vs Mejor (Fitness Escalarizado) ---
         # ABC con Lambda Óptimo y presupuesto completo
@@ -118,6 +99,29 @@ def main():
             fitness_frente_nsga.append(MetricasFinancieras.calcular_fitness(f_obj_n))
         
         dist_fitness_nsga_caso2.append(np.max(fitness_frente_nsga))
+
+    # --- Cálculo de Hipervolumen con Punto de Referencia Robusto ---
+    print("\nDeterminando punto de referencia global y recalculando hipervolúmenes...")
+    todos_los_objetivos = []
+    for obj, _ in nsga_results_por_semilla.values(): todos_los_objetivos.extend(obj)
+    for frente in abc_fronts_por_semilla.values(): todos_los_objetivos.extend(frente)
+    todos_los_objetivos = np.array(todos_los_objetivos)
+    
+    # El punto de referencia debe ser mayor al peor valor encontrado (nadir global)
+    nadir_f1 = np.max(todos_los_objetivos[:, 0])
+    nadir_f2 = np.max(todos_los_objetivos[:, 1])
+    pto_ref_robusto = [nadir_f1 * 1.1, nadir_f2 + 0.001]
+
+    dist_hv_nsga = [calcular_hipervolumen_2d(nsga_results_por_semilla[s][0], pto_ref_robusto) for s in semillas]
+    dist_hv_abc = [calcular_hipervolumen_2d(np.array(abc_fronts_por_semilla[s]), pto_ref_robusto) for s in semillas]
+
+    # Identificar mejores frentes globales según el nuevo HV
+    idx_mejor_nsga = np.argmax(dist_hv_nsga)
+    mejor_obj_nsga, mejor_pob_nsga = nsga_results_por_semilla[semillas[idx_mejor_nsga]]
+    
+    idx_mejor_abc = np.argmax(dist_hv_abc)
+    mejores_obj_abc = np.array(abc_fronts_por_semilla[semillas[idx_mejor_abc]])
+    mejores_pesos_abc = np.array(abc_pesos_por_semilla[semillas[idx_mejor_abc]])
 
     # --- Procesamiento de Resultados y Tests Estadísticos ---
     print("\n=== Analizando Resultados ===")
@@ -142,8 +146,8 @@ def main():
     # Exportación de archivos detallados
     print("\nExportando archivos de resultados...")
     exportar_carteras(mejor_pob_nsga, mejor_obj_nsga, mejores_pesos_abc, mejores_obj_abc, lambdas_barrido, carpeta_salida)
-    exportar_hipervolumen(mejor_obj_nsga, mejores_obj_abc, carpeta_salida)
-    exportar_test_wilcoxon(semillas, abc_fronts_por_semilla, pto_ref, dist_hv_nsga, dist_sharpe_nsga, carpeta_salida)
+    exportar_hipervolumen(mejor_obj_nsga, mejores_obj_abc, pto_ref_robusto, carpeta_salida)
+    exportar_test_wilcoxon(semillas, abc_fronts_por_semilla, pto_ref_robusto, dist_hv_nsga, dist_sharpe_nsga, carpeta_salida)
     generar_graficos(mejor_obj_nsga, mejores_obj_abc, carpeta_salida)
 
     print(f"Proceso finalizado. Resultados en: {carpeta_salida}")
